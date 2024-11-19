@@ -1,0 +1,39 @@
+# Ignore executable files
+*.exe
+*.out
+*.app
+*.bin
+*.elf
+
+# Ignore all files without extensions (common for executables on Unix)
+*~
+
+# Ignore compiled object files and libraries
+*.o
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+
+# Ignore Go build artifacts
+/go-build/
+
+# Ignore Rust target directory
+/target/
+
+# Ignore Cargo.lock backup
+Cargo.lock.bk
+
+# Ignore Python compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Windows system files
+Thumbs.db
+desktop.ini
+
