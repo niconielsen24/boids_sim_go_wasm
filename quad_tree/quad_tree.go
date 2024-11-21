@@ -1,179 +1,126 @@
 package quadtree
 
 type Point struct {
-	X int64
-	Y int64
+	X float64
+	Y float64
 }
 
-type Node struct {
-	Position Point
-	Data     int // boid??
+type UserPoint[T any] struct {
+	X        float64
+	Y        float64
+	UserData T
 }
 
-type Quad struct {
-	TopLeft     Point
-	BottomRight Point
-	Node        *Node
-
-	TopLeftTree  *Quad
-	TopRightTree *Quad
-	BotLeftTree  *Quad
-	BotRightTree *Quad
+type Boundary struct {
+	Center  Point
+	HalfDim float64
 }
 
-// Initialize quad tree, where tl and br are points
-// that define the  bounds of this tree
-func QuadInit(tl, br Point) *Quad {
-	return &Quad{
-		TopLeft:     tl,
-		BottomRight: br,
+type Quad[T any] struct {
+	Bound  Boundary
+	Points []UserPoint[T]
 
-		Node:         nil,
-		TopLeftTree:  nil,
-		TopRightTree: nil,
-		BotLeftTree:  nil,
-		BotRightTree: nil,
-	}
+	nw *Quad[T]
+	ne *Quad[T]
+	sw *Quad[T]
+	se *Quad[T]
 }
 
-func (qt *Quad) inBoundary(p Point) bool {
-	return (p.X >= qt.TopLeft.X &&
-		p.X <= qt.BottomRight.X &&
-		p.Y >= qt.TopLeft.Y &&
-		p.Y <= qt.BottomRight.Y)
+func (b *Boundary) containsPoint(p Point) bool {
+	return (b.Center.X+b.HalfDim >= p.X && b.Center.X-b.HalfDim <= p.X &&
+		b.Center.Y+b.HalfDim >= p.Y && b.Center.Y-b.HalfDim <= p.Y)
 }
 
-func abs(n int64) int64 {
-	if n < 0 {
-		return n * -1
-	}
-	return n
+func (b *Boundary) intersects(other *Boundary) bool {
+	return !(b.Center.X+b.HalfDim < other.Center.X-other.HalfDim ||
+		b.Center.X-b.HalfDim > other.Center.X+other.HalfDim ||
+		b.Center.Y+b.HalfDim < other.Center.Y-other.HalfDim ||
+		b.Center.Y-b.HalfDim > other.Center.Y+other.HalfDim)
 }
 
-func (qt *Quad) Insert(n *Node) {
-	if n == nil {
-		return
-	}
-
-	// current quad cannot contain it
-	if !qt.inBoundary(n.Position) {
-		return
-	}
-
-	// unit area quad cannot be subdivided further
-	if abs(qt.TopLeft.X-qt.BottomRight.X) <= 1 &&
-		abs(qt.TopLeft.Y-qt.BottomRight.Y) <= 1 {
-		if qt.Node == nil {
-			qt.Node = n
-      return
-		}
-	}
-
-	if (qt.TopLeft.X+qt.BottomRight.X)/2 >= n.Position.X {
-		if (qt.TopLeft.Y+qt.BottomRight.Y)/2 >= n.Position.Y {
-			// We are on TopLeftTree area
-			if qt.TopLeftTree == nil {
-				qt.TopLeftTree = QuadInit(
-					Point{
-						X: qt.TopLeft.X,
-						Y: qt.TopLeft.Y,
-					},
-					Point{
-						X: (qt.TopLeft.X + qt.BottomRight.X) / 2,
-						Y: (qt.TopLeft.Y + qt.BottomRight.Y) / 2,
-					},
-				)
-			}
-			qt.TopLeftTree.Insert(n)
-		} else {
-			// We are on BotLeftTree area
-			if qt.BotLeftTree == nil {
-				qt.BotLeftTree = QuadInit(
-					Point{
-						X: qt.TopLeft.X,
-						Y: (qt.TopLeft.Y + qt.BottomRight.Y) / 2,
-					},
-					Point{
-						X: (qt.TopLeft.X + qt.BottomRight.X) / 2,
-						Y: qt.BottomRight.Y,
-					},
-				)
-			}
-			qt.BotLeftTree.Insert(n)
-		}
-	} else {
-		if (qt.TopLeft.Y+qt.BottomRight.Y)/2 >= n.Position.Y {
-			// We are on TopRightTree area
-			if qt.TopRightTree == nil {
-				qt.TopRightTree = QuadInit(
-					Point{
-						X: (qt.TopLeft.X + qt.BottomRight.X) / 2,
-						Y: qt.TopLeft.Y,
-					},
-					Point{
-						X: qt.BottomRight.X,
-						Y: (qt.TopLeft.Y + qt.BottomRight.Y) / 2,
-					},
-				)
-			}
-			qt.TopRightTree.Insert(n)
-		} else {
-			// We are on BotRightTree area
-			if qt.BotRightTree == nil {
-				qt.BotRightTree = QuadInit(
-					Point{
-						X: (qt.TopLeft.X + qt.BottomRight.X) / 2,
-						Y: (qt.TopLeft.Y + qt.BottomRight.Y) / 2,
-					},
-					Point{
-						X: qt.BottomRight.X,
-						Y: qt.BottomRight.Y,
-					},
-				)
-			}
-			qt.BotRightTree.Insert(n)
-		}
+func InitQuad[T any](b *Boundary) *Quad[T] {
+	return &Quad[T]{
+		Bound:  *b,
+		Points: []UserPoint[T]{},
+		nw:     nil,
+		ne:     nil,
+		sw:     nil,
+		se:     nil,
 	}
 }
 
-func (qt *Quad) Search(p Point) *Node {
-	// Outside current quad bounds
-	if !qt.inBoundary(p) {
-		return nil
+func (qt *Quad[T]) Subdivide() {
+	half := qt.Bound.HalfDim / 2
+	qt.nw = InitQuad[T](&Boundary{
+		Center:  Point{qt.Bound.Center.X - half, qt.Bound.Center.Y + half},
+		HalfDim: half,
+	})
+	qt.ne = InitQuad[T](&Boundary{
+		Center:  Point{qt.Bound.Center.X + half, qt.Bound.Center.Y + half},
+		HalfDim: half,
+	})
+	qt.sw = InitQuad[T](&Boundary{
+		Center:  Point{qt.Bound.Center.X - half, qt.Bound.Center.Y - half},
+		HalfDim: half,
+	})
+	qt.se = InitQuad[T](&Boundary{
+		Center:  Point{qt.Bound.Center.X + half, qt.Bound.Center.Y - half},
+		HalfDim: half,
+	})
+}
+
+func (qt *Quad[T]) Insert(up *UserPoint[T]) bool {
+
+	if !qt.Bound.containsPoint(Point{X: up.X, Y: up.Y}) {
+		return false
 	}
 
-	// Unit lenght quad cannot be subdivided
-	if qt.Node != nil {
-		return qt.Node
+	if len(qt.Points) < 4 && qt.nw == nil {
+		qt.Points = append(qt.Points, *up)
+		return true
 	}
 
-	if (qt.TopLeft.X+qt.BottomRight.X)/2 >= p.X {
-		if (qt.TopLeft.Y+qt.BottomRight.Y)/2 >= p.Y {
-			// We are on TopLeftTree area
-			if qt.TopLeftTree == nil {
-				return nil
-			}
-			return qt.TopLeftTree.Search(p)
-		} else {
-			// We are on BotLeftTree area
-			if qt.BotLeftTree == nil {
-				return nil
-			}
-			return qt.BotLeftTree.Search(p)
-		}
-	} else {
-		if (qt.TopLeft.Y+qt.BottomRight.Y)/2 >= p.Y {
-			// We are on TopRightTree area
-			if qt.TopRightTree == nil {
-				return nil
-			}
-			return qt.TopRightTree.Search(p)
-		} else {
-      // We are on BotRightTree area
-      if qt.BotRightTree == nil {
-        return nil
-      }
-      return qt.BotRightTree.Search(p)
+	if qt.nw == nil {
+		qt.Subdivide()
+	}
+
+	if qt.nw.Insert(up) {
+		return true
+	}
+	if qt.ne.Insert(up) {
+		return true
+	}
+	if qt.sw.Insert(up) {
+		return true
+	}
+	if qt.se.Insert(up) {
+		return true
+	}
+	return false
+}
+
+func (qt *Quad[T]) Query(b *Boundary) []UserPoint[T] {
+  var pointsInRange []UserPoint[T]
+  
+  if !qt.Bound.intersects(b) {
+    return pointsInRange
+  }
+
+  for i := range qt.Points {
+    p := qt.Points[i]
+    if qt.Bound.containsPoint(Point{X: p.X, Y: p.Y}) {
+      pointsInRange = append(pointsInRange, p)
     }
-	}
+  }
+
+  if qt.nw == nil {
+    return pointsInRange
+  }
+
+  pointsInRange = append(pointsInRange, qt.nw.Query(b)...)
+  pointsInRange = append(pointsInRange, qt.ne.Query(b)...)
+  pointsInRange = append(pointsInRange, qt.sw.Query(b)...)
+  pointsInRange = append(pointsInRange, qt.se.Query(b)...)
+
+  return pointsInRange
 }
