@@ -6,9 +6,9 @@ The goal is to practice and advance in the use of the Go programming language an
 
 Eventually, there should be a couple of images here for a quick look at the result.
 
-![img_1](./assets/Screenshot from 2024-11-21 19-39-17.png)
+![img_1](assets/Screenshot from 2024-11-21 19-39-17.png)
 
-![img_2](./assets/Screenshot from 2024-11-21 19-39-35.png)
+![img_2](assets/Screenshot from 2024-11-21 19-39-35.png)
 
 ## References
 
