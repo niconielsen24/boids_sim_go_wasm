@@ -2,6 +2,7 @@
     <head>
         <meta charset="utf-8"/>
         <script src="wasm_exec.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
         <script>
             const go = new Go();
             WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
@@ -9,5 +10,5 @@
             });
         </script>
     </head>
-    <body></body>
+    <body class="h-screen flex items-center justify-center bg-gray-100"></body>
 </html>

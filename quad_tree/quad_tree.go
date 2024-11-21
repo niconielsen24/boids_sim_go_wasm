@@ -49,6 +49,13 @@ func InitQuad[T any](b *Boundary) *Quad[T] {
 	}
 }
 
+func (qt *Quad[T]) Clear() {
+  qt.nw = nil
+  qt.ne = nil
+  qt.sw = nil
+  qt.se = nil
+}
+
 func (qt *Quad[T]) Subdivide() {
 	half := qt.Bound.HalfDim / 2
 	qt.nw = InitQuad[T](&Boundary{

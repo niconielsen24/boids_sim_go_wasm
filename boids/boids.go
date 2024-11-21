@@ -38,7 +38,7 @@ func (p *Position) add(other *Position) {
 	p.Y += other.Y
 }
 
-func inViewRange(origin, other *Boid, viewAngle, viewDistance float64) bool {
+func InViewRange(origin, other *Boid, viewAngle, viewDistance float64) bool {
     delta := Vector{
         X: other.Position.X - origin.Position.X,
         Y: other.Position.Y - origin.Position.Y,
@@ -58,6 +58,7 @@ func inViewRange(origin, other *Boid, viewAngle, viewDistance float64) bool {
     return angle <= viewAngle/2
 }
 
+
 func (b *Boid) Update(neighbors []Boid, viewAngle, viewDistance float64) {
     cohesion := Vector{}
     separation := Vector{}
@@ -65,55 +66,71 @@ func (b *Boid) Update(neighbors []Boid, viewAngle, viewDistance float64) {
     neighborCount := 0
 
     for _, neighbor := range neighbors {
-        if inViewRange(b, &neighbor, viewAngle, viewDistance) {
+        if InViewRange(b, &neighbor, viewAngle, viewDistance) {
             neighborCount++
 
-            // Cohesion: Average position
+            // Distance-based force scalar
+            delta := Vector{
+                X: neighbor.Position.X - b.Position.X,
+                Y: neighbor.Position.Y - b.Position.Y,
+            }
+            distance := math.Sqrt(delta.X*delta.X + delta.Y*delta.Y)
+
+            // Cohesion: Move toward the average position of neighbors
             cohesion.X += neighbor.Position.X
             cohesion.Y += neighbor.Position.Y
 
-            // Separation: Avoidance
-            delta := Vector{
-                X: b.Position.X - neighbor.Position.X,
-                Y: b.Position.Y - neighbor.Position.Y,
-            }
-            distance := math.Sqrt(delta.X*delta.X + delta.Y*delta.Y)
-            if distance != 0 {
-                separation.X += delta.X / distance
-                separation.Y += delta.Y / distance
+            // Separation: Avoid too-close neighbors
+            if distance > 0 {
+                separation.X += (b.Position.X - neighbor.Position.X) / distance 
+                separation.Y += (b.Position.Y - neighbor.Position.Y) / distance
             }
 
-            // Alignment: Average direction
-            alignment.X += neighbor.DirVec.X
+            // Alignment: Match the average direction of neighbors
+            alignment.X += neighbor.DirVec.X 
             alignment.Y += neighbor.DirVec.Y
         }
     }
 
     if neighborCount > 0 {
-        // Cohesion
+        // Average cohesion force
         cohesion.X /= float64(neighborCount)
         cohesion.Y /= float64(neighborCount)
         cohesion.X -= b.Position.X
         cohesion.Y -= b.Position.Y
         cohesion.Normalize()
 
-        // Separation
+        // Normalize separation
         separation.Normalize()
 
-        // Alignment
+        // Average alignment force
         alignment.X /= float64(neighborCount)
         alignment.Y /= float64(neighborCount)
         alignment.Normalize()
     }
 
-    // Combine forces
-    b.DirVec.add(&cohesion)
-    b.DirVec.add(&separation)
-    b.DirVec.add(&alignment)
+    // Combine forces with weights
+    b.DirVec.X += cohesion.X + separation.X + alignment.X
+    b.DirVec.Y += cohesion.Y + separation.Y + alignment.Y
     b.DirVec.Normalize()
 
-    // Update position
-    b.Position.X += b.DirVec.X
-    b.Position.Y += b.DirVec.Y
+    // Update position with scaled speed
+    speed := 4.0 // Base speed
+    b.Position.X += b.DirVec.X * speed
+    b.Position.Y += b.DirVec.Y * speed
 }
 
+
+func (b *Boid) KeepInBounds(w, h float64) {
+	if b.Position.X < 0 {
+		b.Position.X = w
+	} else if b.Position.X > w {
+		b.Position.X = 0
+	}
+
+	if b.Position.Y < 0 {
+		b.Position.Y = h
+	} else if b.Position.Y > h {
+		b.Position.Y = 0
+	}
+}
